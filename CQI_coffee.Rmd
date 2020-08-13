@@ -27,31 +27,145 @@ output:
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, error = FALSE, fig.align = "center")
 ```
 
-# Importing Packages
+# Import Packages
 
 ```{r}
 if(!require(pacman, quietly = TRUE)){ install.packages("pacman", quiet = TRUE, verbose = FALSE) }
-pacman::p_load(caret, tidyverse, tidyselect, janitor, gdata, tools, install = TRUE, update = FALSE)
+pacman::p_load(caret, tidyverse, tidyselect, janitor, gdata, tools, renv, install = TRUE, update = FALSE)
 ```
 
 
+***
+
+# Import Data
+
+```{r}
+raw_arabica <- read_csv("data/arabica_ratings_raw.csv")
+raw_robusta <- read_csv("data/robusta_ratings_raw.csv")
+```
 
 
+# Data Cleaning
+
+```{r}
+print_dimensions(raw_arabica, message = FALSE)
+print_dimensions(raw_robusta, message = FALSE)
+```
+
+```{r}
+print_colnames(raw_arabica)
+print_colnames(raw_robusta)
+```
 
 
+```{r}
+arabica <- rm_starts_with(raw_arabica) %>% janitor::remove_empty(which = "cols") 
+robusta <- rm_starts_with(raw_robusta) %>% janitor::remove_empty(which = "cols") 
+
+cols_in_ara <- setdiff(colnames(arabica), colnames(robusta))
+cols_in_rob <- setdiff(colnames(robusta), colnames(arabica))
+cols_in_both <- intersect(colnames(arabica), colnames(robusta))
+
+print_intro("Columns in arabica only:\n", cols_in_ara, sep = " |")
+print_intro("Columns in robusta only:\n", cols_in_rob, sep = " |")
+print_intro("Columns in both tables:\n", cols_in_both, sep = " |")
+```
+```{r}
+arabica <- clean_colnames(arabica) %>% janitor::remove_empty(which = "cols")
+robusta <- clean_colnames(robusta) %>% janitor::remove_empty(which = "cols")
+arabica$NOTES <- NULL
+
+cols_in_ara <- setdiff(colnames(arabica), colnames(robusta))
+cols_in_rob <- setdiff(colnames(robusta), colnames(arabica))
+cols_in_both <- intersect(colnames(arabica), colnames(robusta))
+
+print_intro("Columns in arabica only:\n", cols_in_ara, sep = " |")
+print_intro("Columns in robusta only:\n", cols_in_rob, sep = " |")
+print_intro("Columns in both tables:\n", cols_in_both, sep = " |")
+
+robusta <-  gdata::rename.vars(robusta, 
+                               from = c("FRAGRANCE_AROMA", "SALT_ACID", "BITTER_SWEET", "MOUTHFEEL", "UNIFORM_CUP"), 
+                               to = c("AROMA", "ACIDITY", "SWEETNESS", "BODY", "UNIFORMITY"), info = TRUE)
+
+merged_df <- merge(arabica, robusta, all=TRUE)
+print_dimensions(merged_df)
+
+# merged_df[merged_df$SPECIES == "Robusta", cols_in_ara]
+# merged_df[merged_df$SPECIES == "Arabica", cols_in_rob]
+```
 
 
+```{r}
+merged_dtypes <- sapply(merged_df, class)
 
+print_intro("Numeric features:\n", names(merged_dtypes)[merged_dtypes == "numeric"])
+print_intro("Non-numeric features:\n", names(merged_dtypes)[merged_dtypes != "numeric"])
 
+# merged_df[, merged_dtypes == "numeric"]
+# merged_df[, merged_dtypes == "character"]
 
+```
 
+***
 
+## Process Countries of Origin
 
+```{r}
+print_intro("Countries of origin:\n", merged_df$COUNTRY_OF_ORIGIN %>% unique() %>% sort(), sep = " |")
 
+print_intro(intro = "Entries with missing Country of origin:\n")
+merged_df[is.na(merged_df$COUNTRY_OF_ORIGIN), c('OWNER', "PRODUCER", "CERTIFICATION_BODY", "CERTIFICATION_ADDRESS")]
 
+# Assign entry with missing Country to Colombia
 
+merged_df[is.na(merged_df$COUNTRY_OF_ORIGIN), "COUNTRY_OF_ORIGIN"] <- "Colombia"
+```
+```{r}
+tot_mod <- 0
 
+for (i in 1:nrow(merged_df)){
+  
+  country <- merged_df$COUNTRY_OF_ORIGIN[i]
+  # print(country)
+  
+  country_clean <- country %>% 
+    str_replace("Cote d\\?Ivoire", "Ivory Coast") %>% 
+    str_replace(", United Republic Of", "") %>% 
+    str_replace("United States", "USA")
+  
+  if (country_clean != country) { 
+    
+    merged_df$COUNTRY_OF_ORIGIN[i] <- country_clean
+    cat("row", i, "Changed from:", country, "to:", country_clean, "\n")
+    tot_mod <- tot_mod + 1
+    
+  }
+}
 
+print_intro("\nNumber of entries modified: ", tot_mod, eol = "\n")
+
+table(merged_df$COUNTRY_OF_ORIGIN) %>% sort(decreasing = TRUE) %>% data.frame()
+```
+***
+
+## Process Region
+
+```{r}
+merged_df$REGION %>% unique() %>% sort()
+
+merged_df$REGION <- merged_df$REGION %>% 
+  chartr(old = "áéó", new = "aeo") %>%
+  # iconv(to="ASCII//TRANSLIT") %>% 
+  str_remove_all("\\.|-|\\;|\\:") %>% 
+  str_replace_all(", ", " ") %>% 
+  str_replace_all("test|TEST|N/A", "") %>% 
+  str_replace_all(" {2,}", " ") %>% 
+  str_to_upper() 
+  
+  
+
+merged_df$REGION %>% unique() %>% sort()
+```
 
 
 
