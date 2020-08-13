@@ -1,0 +1,83 @@
+---
+title: "CQI_coffee"
+subtitle: ""
+author: "Jean Dos Santos"
+date: "August 2020"
+output:
+  word_document:
+    highlight: tango
+    toc: yes
+    toc_depth: 2
+  pdf_document:
+    number_sections: yes
+    toc: yes
+    toc_depth: 2
+  html_document:
+    highlight: tango
+    number_sections: yes
+    theme: cerulean
+    toc: yes
+    toc_float:
+      collapsed: yes
+      smooth_scroll: yes
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, error = FALSE, fig.align = "center")
+```
+
+# Importing Packages
+
+```{r}
+if(!require(pacman, quietly = TRUE)){ install.packages("pacman", quiet = TRUE, verbose = FALSE) }
+pacman::p_load(caret, tidyverse, tidyselect, janitor, gdata, tools, install = TRUE, update = FALSE)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
