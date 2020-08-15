@@ -31,7 +31,7 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, error = FAL
 
 ```{r}
 if(!require(pacman, quietly = TRUE)){ install.packages("pacman", quiet = TRUE, verbose = FALSE) }
-pacman::p_load(caret, tidyverse, tidyselect, janitor, gdata, tools, renv, install = TRUE, update = FALSE)
+pacman::p_load(caret, tidyverse, magrittr, tidyselect, assertive, stringi, janitor, gdata, tools, renv, install = TRUE, update = FALSE)
 ```
 
 
@@ -142,7 +142,7 @@ for (i in 1:nrow(merged_df)){
   }
 }
 
-print_intro("\nNumber of entries modified: ", tot_mod, eol = "\n")
+print_intro("\nNumber of entries modified: ", tot_mod, eol = "\n", message = FALSE)
 
 table(merged_df$COUNTRY_OF_ORIGIN) %>% sort(decreasing = TRUE) %>% data.frame()
 ```
@@ -151,22 +151,11 @@ table(merged_df$COUNTRY_OF_ORIGIN) %>% sort(decreasing = TRUE) %>% data.frame()
 ## Process Region
 
 ```{r}
-merged_df$REGION %>% unique() %>% sort()
+merged_df$REGION <- clean_text(merged_df$REGION)
 
-merged_df$REGION <- merged_df$REGION %>% 
-  chartr(old = "áéó", new = "aeo") %>%
-  # iconv(to="ASCII//TRANSLIT") %>% 
-  str_remove_all("\\.|-|\\;|\\:") %>% 
-  str_replace_all(", ", " ") %>% 
-  str_replace_all("test|TEST|N/A", "") %>% 
-  str_replace_all(" {2,}", " ") %>% 
-  str_to_upper() 
-  
-  
-
-merged_df$REGION %>% unique() %>% sort()
+merged_df$REGION %>% sort() %>% unique() %>% head(20)
+merged_df$REGION %>% sort() %>% unique() %>% tail(20)
 ```
-
 
 
 
