@@ -184,14 +184,23 @@ print_total_NA(merged_df$HARVEST_YEAR)
 
 if(print_plots){ merged_df$HARVEST_YEAR %>% hist(., main = "Distribution of Harvest Year", xlab = "Harvest Year", ) }
 ```
+Most records are graded during the same year of the harvest year
 
-Use grading date to impute missing harvest year
+Use Grading year to impute missing harvest year
 
 ```{r}
+merged_df$GRADING_YEAR <- merged_df$GRADING_DATE %>% extract_year() 
 
+print_intro("Average difference between grading year and harvest year: ", mean(merged_df$GRADING_YEAR[!is.na(merged_df$HARVEST_YEAR)] - merged_df$HARVEST_YEAR[!is.na(merged_df$HARVEST_YEAR)]) %>% round(4))
 
-GRADING_YEAR <- merged_df$GRADING_DATE %>% extract_year() 
+# impute missing harvest year with grading year
+merged_df$HARVEST_YEAR[is.na(merged_df$HARVEST_YEAR)] <- merged_df$GRADING_YEAR[is.na(merged_df$HARVEST_YEAR)]
+
+merged_df$HARVEST_YEAR %>% summary()
+print_total_NA(merged_df$HARVEST_YEAR)
 ```
+
+## Process altitude
 
 
 
