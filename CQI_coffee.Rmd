@@ -204,7 +204,7 @@ merged_df$HARVEST_YEAR %>% summary()
 print_total_NA(merged_df$HARVEST_YEAR)
 ```
 
-## Process altitude
+## Process Altitude
 
 ```{r}
 print_intro(intro = "Unique entries for `ALTITUDE` before cleaning:\n", merged_df$ALTITUDE %>% unique() %>% sort(), sep = " |", message = FALSE)
@@ -263,31 +263,23 @@ altitude_text[altitude_text == ""] <- NA
     apply(., MARGIN = 1, mean, na.rm=TRUE)
 )
 
-data.frame(altitude_numeric, altitude_text)
-```
+
+altitude_numeric %>% summary()
+
+altitude_numeric[altitude_numeric > 20000 & !is.na(altitude_numeric)] <- NA
 
 
-```{r}
-altitude_text %>% unique()
-```
-
-
-```{r}
 feet_regex <- "FT|FEET|PIES|PSN|^F$"
 meter_regex <- "^M|METRE|METER|MASL|MT[S]*|MS[N]*M|公尺"
 regex_vec <- c("m" = meter_regex, "ft" = feet_regex)
 
 assigned_unit <- regex_assign(altitude_text, regex_vec = regex_vec, exclude_na = TRUE, verbose = TRUE)
+
+data.frame(altitude_numeric, assigned_unit) %>% 
+  ggplot(aes(x = altitude_numeric, fill = assigned_unit, col = assigned_unit)) +
+    geom_histogram()
 ```
 
-```{r}
-altitude_text %>% unique() %>% str_extract_all(., pattern = ft_regex, simplify = TRUE)
-```
-
-
-```{r}
-custom_visdat(altitude_numeric)
-```
 
 
 ```{r}
