@@ -98,6 +98,8 @@ robusta <-  gdata::rename.vars(robusta,
 merged_df <- merge(arabica, robusta, all=TRUE)
 print_dimensions(merged_df)
 
+if(print_plots){ custom_visdat(merged_df, save_plot = save_plots, save_dir = save_plots_dir) }
+
 # merged_df[merged_df$SPECIES == "Robusta", cols_in_ara]
 # merged_df[merged_df$SPECIES == "Arabica", cols_in_rob]
 ```
@@ -113,6 +115,8 @@ print_intro("Non-numeric features:\n", names(merged_dtypes)[merged_dtypes != "nu
 # merged_df[, merged_dtypes == "character"]
 
 ```
+
+
 
 ***
 
@@ -202,11 +206,101 @@ print_total_NA(merged_df$HARVEST_YEAR)
 
 ## Process altitude
 
+```{r}
+print_intro(intro = "Unique entries for `ALTITUDE` before cleaning:\n", merged_df$ALTITUDE %>% unique() %>% sort(), sep = " |", message = FALSE)
+print_total_NA(merged_df$ALTITUDE)
+```
+
+```{r}
+clean_altitude <- function(text, text_case = "upper", 
+                       rm_accents = TRUE, accents_to = "Latin-ASCII", 
+                       rm_redundant = TRUE, redundant_regex = "test|TEST|n\\/a|N\\/A|unkown|none|average", 
+                       rm_punct = TRUE, punct_regex = "\\||\\.|\\;|\\:|\\(|\\)|\\~|\\,|\\+",
+                       sub_w_space = TRUE, sub_w_space_regex = ",|/|-",
+                       replace_NA = TRUE, NA_regex = "",
+                       rm_numbers = TRUE, sub_double_space = TRUE){
+  
+  clean_text <- text %>% 
+    stringr::str_to_lower() %>% 
+    { if(rm_accents) stringi::stri_trans_general(., accents_to) else .} %>% 
+    { if(rm_redundant) stringr::str_remove_all(., redundant_regex) else .} %>% 
+    { if(rm_punct) stringr::str_remove_all(., punct_regex) else .} %>% 
+    { if(sub_w_space) stringr::str_replace_all(., sub_w_space_regex, " ") else .} %>% 
+    { if(rm_numbers) stringr::str_remove_all(., "[0-9]") else .} %>% 
+    { if(sub_double_space) stringr::str_replace_all(., " {2,}", " ") else .} %>% 
+    { if(replace_NA) stringr::str_replace_na(., replacement = NA_regex) else .} %>% 
+    stringr::str_remove_all(., " $|^ ") %>% 
+    stringi::stri_trans_general(., id = text_case)
+  
+  return(clean_text)
+  
+}
+
+
+altitude_text <- merged_df$ALTITUDE %>% unique() %>% 
+    stringr::str_to_lower() %>% 
+    { if(rm_accents) stringi::stri_trans_general(., accents_to) else .} %>% 
+    { if(rm_redundant) stringr::str_remove_all(., redundant_regex) else .} %>% 
+    { if(rm_punct) stringr::str_remove_all(., punct_regex) else .} %>%
+    { if(sub_w_space) stringr::str_replace_all(., sub_w_space_regex, " ") else .} %>% 
+    { if(rm_numbers) stringr::str_remove_all(., "[0-9]") else .} %>% 
+    { if(sub_double_space) stringr::str_replace_all(., " {2,}", " ") else .} %>% 
+    { if(replace_NA) stringr::str_replace_na(., replacement = NA_regex) else .} %>% 
+    stringr::str_remove_all(., " $|^ ") %>% 
+    stringi::stri_trans_general(., id = text_case)
+
+(altitude_numeric <- merged_df$ALTITUDE %>% unique() %>% 
+    { if(rm_punct) stringr::str_remove_all(., punct_regex) else .} %>%
+    stringr::str_replace_all(., pattern = "[:punct:]", replacement = " ") %>%   
+    stringr::str_remove_all(., pattern = "[:alpha:]") %>% 
+    { if(sub_double_space) stringr::str_replace_all(., " {2,}", " ") else .} %>% 
+    { if(replace_NA) stringr::str_replace_na(., replacement = NA_regex) else .} %>% 
+    stringr::str_remove_all(., " $|^ ") %>% 
+    stringr::str_extract_all(., "[0-9]+", simplify = TRUE) %>% 
+    data.frame() %>% 
+)
+
+altitude_numeric <- as.numeric(as.matrix(altitude_numeric))
+
+```
 
 
 
+```{r}
+text = []
+nums = []
 
+regex_metr = "metres\sa\\.*s\\.*l\\.*|m\\.*a\\.*s\\.*l\\.*|mts|m\\.*s\\.*l|ma\\.*s\\.*l\\.*|mosl|mals|mnm*|公尺|\s*on\saverage|mtr|ms|mnm|meters|metros|\s*ms*nm*|meter|m{2,}|msn|msm|m\\.*s\\.*n\\.*m|ms"
+regex_feet = "p\\.*s\\.*n\\.*m\\.*|pies|ft\\.*|psnm*|feet|dpl"
+regex_space = "\s*-\s*|de\s|\sa\s|\\/|\\~|\\+|thru|and"
+regex_remov = "huanuco|to\s|\\(.*\\)*|average|,|between|none|unkown|nan|test|'|approx\\.*\s*|sobre\sel\snivel\sdel\smar|above\ssea\slevel:*|^above|nivel\sdel\smar|on|snn"
 
+for alt in merged_df["Altitude"]:
+
+    alt = str(alt).lower()
+    alt = re.sub("(?<=\d{1})[.,](?=\d{3})", "", alt)
+    alt = re.sub("(?<=\d{4})[.|,]\d{1,2}", "", alt)
+    alt = re.sub("\\.|,", "", alt)
+    alt = re.sub(regex_space, " ", alt)
+    alt = re.sub(regex_remov, "", alt) 
+    alt = re.sub(regex_metr, "m", alt)
+    alt = re.sub(regex_feet, "f", alt)
+    alt = re.sub("\s{2,}", " ", alt)
+    alt = re.sub("^\s", "", alt)
+    
+    text.append(re.findall(pattern = "[a-z]+", string = alt))
+    nums.append(re.findall(pattern = "\d+", string = alt))
+
+# # print("text", text)
+# # print("num", num)
+
+altitude = pd.DataFrame({"nums":nums, "text":text})
+display(altitude.head(5))
+display(altitude.tail(5))
+
+# lengths = pd.Series([len(x) for x in altitude.nums])
+# print("Unique number of items in list:", lengths.unique())
+```
 
 
 
