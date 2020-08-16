@@ -98,7 +98,7 @@ robusta <-  gdata::rename.vars(robusta,
 merged_df <- merge(arabica, robusta, all=TRUE)
 print_dimensions(merged_df)
 
-if(print_plots){ custom_visdat(merged_df, save_plot = save_plots, save_dir = save_plots_dir) }
+if(print_plots){ custom_visdat(merged_df, title = "Coffee CQI dataset after merging arabica and robusta datasets", save_plot = save_plots, save_dir = save_plots_dir) }
 
 # merged_df[merged_df$SPECIES == "Robusta", cols_in_ara]
 # merged_df[merged_df$SPECIES == "Arabica", cols_in_rob]
@@ -236,8 +236,7 @@ clean_altitude <- function(text, text_case = "upper",
   
 }
 
-
-altitude_text <- merged_df$ALTITUDE %>% unique() %>% 
+altitude_text <- merged_df$ALTITUDE %>% 
     stringr::str_to_lower() %>% 
     { if(rm_accents) stringi::stri_trans_general(., accents_to) else .} %>% 
     { if(rm_redundant) stringr::str_remove_all(., redundant_regex) else .} %>% 
@@ -249,7 +248,9 @@ altitude_text <- merged_df$ALTITUDE %>% unique() %>%
     stringr::str_remove_all(., " $|^ ") %>% 
     stringi::stri_trans_general(., id = text_case)
 
-(altitude_numeric <- merged_df$ALTITUDE %>% unique() %>% 
+altitude_text[altitude_text == ""] <- NA
+
+(altitude_numeric <- merged_df$ALTITUDE %>% 
     { if(rm_punct) stringr::str_remove_all(., punct_regex) else .} %>%
     stringr::str_replace_all(., pattern = "[:punct:]", replacement = " ") %>%   
     stringr::str_remove_all(., pattern = "[:alpha:]") %>% 
@@ -257,11 +258,40 @@ altitude_text <- merged_df$ALTITUDE %>% unique() %>%
     { if(replace_NA) stringr::str_replace_na(., replacement = NA_regex) else .} %>% 
     stringr::str_remove_all(., " $|^ ") %>% 
     stringr::str_extract_all(., "[0-9]+", simplify = TRUE) %>% 
+    apply(., 2, as.numeric) %>% 
     data.frame() %>% 
+    apply(., MARGIN = 1, mean, na.rm=TRUE)
 )
 
-altitude_numeric <- as.numeric(as.matrix(altitude_numeric))
+data.frame(altitude_numeric, altitude_text)
+```
 
+
+```{r}
+altitude_text %>% unique()
+```
+
+
+```{r}
+feet_regex <- "FT|FEET|PIES|PSN|^F$"
+meter_regex <- "^M|METRE|METER|MASL|MT[S]*|MS[N]*M|公尺"
+regex_vec <- c("m" = meter_regex, "ft" = feet_regex)
+
+assigned_unit <- regex_assign(altitude_text, regex_vec = regex_vec, exclude_na = TRUE, verbose = TRUE)
+```
+
+```{r}
+altitude_text %>% unique() %>% str_extract_all(., pattern = ft_regex, simplify = TRUE)
+```
+
+
+```{r}
+custom_visdat(altitude_numeric)
+```
+
+
+```{r}
+altitude_numeric
 ```
 
 
