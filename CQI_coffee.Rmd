@@ -250,7 +250,7 @@ altitude_text <- merged_df$ALTITUDE %>%
 
 altitude_text[altitude_text == ""] <- NA
 
-(altitude_numeric <- merged_df$ALTITUDE %>% 
+altitude_numeric <- merged_df$ALTITUDE %>% 
     { if(rm_punct) stringr::str_remove_all(., punct_regex) else .} %>%
     stringr::str_replace_all(., pattern = "[:punct:]", replacement = " ") %>%   
     stringr::str_remove_all(., pattern = "[:alpha:]") %>% 
@@ -261,14 +261,14 @@ altitude_text[altitude_text == ""] <- NA
     apply(., 2, as.numeric) %>% 
     data.frame() %>% 
     apply(., MARGIN = 1, mean, na.rm=TRUE)
-)
-
 
 altitude_numeric %>% summary()
+altitude_numeric %>% hist(main = "Histogram of Altitude Values: Before Transformation of Outliers", xlab = "Values")
+altitude_numeric <- outlier_to_NA(altitude_numeric, min_threshold = 0, max_threshold = 20000)
+altitude_numeric %>% hist(main = "Histogram of Altitude Values: After Transformation of Outliers", xlab = "Values")
+```
 
-altitude_numeric[altitude_numeric > 20000 & !is.na(altitude_numeric)] <- NA
-
-
+```{r}
 feet_regex <- "FT|FEET|PIES|PSN|^F$"
 meter_regex <- "^M|METRE|METER|MASL|MT[S]*|MS[N]*M|公尺"
 regex_vec <- c("m" = meter_regex, "ft" = feet_regex)
@@ -276,53 +276,130 @@ regex_vec <- c("m" = meter_regex, "ft" = feet_regex)
 assigned_unit <- regex_assign(altitude_text, regex_vec = regex_vec, exclude_na = TRUE, verbose = TRUE)
 
 data.frame(altitude_numeric, assigned_unit) %>% 
-  ggplot(aes(x = altitude_numeric, fill = assigned_unit, col = assigned_unit)) +
-    geom_histogram()
-```
+  filter(!is.na(assigned_unit)) %>% 
+  ggplot(aes(x = altitude_numeric, fill = assigned_unit)) +
+    geom_histogram(bins=20, col = "white", alpha = 0.75) +
+    labs(x = "Altitude", y = "Count", fill = "Assigned Unit") +
+    scale_fill_brewer(type = "qual", palette = "Set1", na.value = "grey") +
+    theme_minimal()
 
+data.frame(altitude_numeric, assigned_unit) %>% 
+  ggplot(aes(x = altitude_numeric, fill = assigned_unit)) +
+    geom_histogram(bins=20, col = "white", alpha = 0.75) +
+    labs(x = "Altitude", y = "Count", fill = "Assigned Unit") +
+    scale_fill_brewer(type = "qual", palette = "Set1", na.value = "grey") +
+    theme_minimal()
 
-
-```{r}
-altitude_numeric
-```
-
-
-
-```{r}
-text = []
-nums = []
-
-regex_metr = "metres\sa\\.*s\\.*l\\.*|m\\.*a\\.*s\\.*l\\.*|mts|m\\.*s\\.*l|ma\\.*s\\.*l\\.*|mosl|mals|mnm*|公尺|\s*on\saverage|mtr|ms|mnm|meters|metros|\s*ms*nm*|meter|m{2,}|msn|msm|m\\.*s\\.*n\\.*m|ms"
-regex_feet = "p\\.*s\\.*n\\.*m\\.*|pies|ft\\.*|psnm*|feet|dpl"
-regex_space = "\s*-\s*|de\s|\sa\s|\\/|\\~|\\+|thru|and"
-regex_remov = "huanuco|to\s|\\(.*\\)*|average|,|between|none|unkown|nan|test|'|approx\\.*\s*|sobre\sel\snivel\sdel\smar|above\ssea\slevel:*|^above|nivel\sdel\smar|on|snn"
-
-for alt in merged_df["Altitude"]:
-
-    alt = str(alt).lower()
-    alt = re.sub("(?<=\d{1})[.,](?=\d{3})", "", alt)
-    alt = re.sub("(?<=\d{4})[.|,]\d{1,2}", "", alt)
-    alt = re.sub("\\.|,", "", alt)
-    alt = re.sub(regex_space, " ", alt)
-    alt = re.sub(regex_remov, "", alt) 
-    alt = re.sub(regex_metr, "m", alt)
-    alt = re.sub(regex_feet, "f", alt)
-    alt = re.sub("\s{2,}", " ", alt)
-    alt = re.sub("^\s", "", alt)
     
-    text.append(re.findall(pattern = "[a-z]+", string = alt))
-    nums.append(re.findall(pattern = "\d+", string = alt))
-
-# # print("text", text)
-# # print("num", num)
-
-altitude = pd.DataFrame({"nums":nums, "text":text})
-display(altitude.head(5))
-display(altitude.tail(5))
-
-# lengths = pd.Series([len(x) for x in altitude.nums])
-# print("Unique number of items in list:", lengths.unique())
 ```
+
+
+```{r}
+# Assign units to altitude values based on numeric value
+threshold <- 3000
+altitude_unit <- assigned_unit
+
+altitude_unit[(altitude_numeric > threshold) & (is.na(altitude_unit)) & (!is.na(altitude_numeric))] <- "ft"
+altitude_unit[(altitude_numeric <= threshold) & (is.na(altitude_unit)) & (!is.na(altitude_numeric))] <- "m"
+
+data.frame(altitude_numeric, altitude_unit) %>% 
+  ggplot(aes(x = altitude_numeric, fill = altitude_unit)) +
+    geom_histogram(bins=20, col = "white", alpha = 0.75) +
+    labs(x = "Altitude", y = "Count", fill = "Assigned Unit") +
+    scale_fill_brewer(type = "qual", palette = "Set1", na.value = "grey") +
+    theme_minimal()
+
+convert_ft_to_m <- function(x, dec = 2){ return( round(x*0.3048000, 2) ) }
+
+merged_df$ALTITUDE_M <- NA
+merged_df$ALTITUDE_M[(altitude_unit == "m") & (!is.na(altitude_unit))] <- altitude_numeric[(altitude_unit == "m") & (!is.na(altitude_unit))]
+
+merged_df$ALTITUDE_M[(altitude_unit == "ft") & (!is.na(altitude_unit))] <- convert_ft_to_m(altitude_numeric[(altitude_unit == "ft") & (!is.na(altitude_unit))])
+```
+
+
+```{r}
+merged_df$ALTITUDE_M %>% summary()
+merged_df$ALTITUDE_M <- outlier_to_NA(merged_df$ALTITUDE_M, max_threshold = 8000)
+
+merged_df %>% 
+  ggplot(aes(x = ALTITUDE_M)) +
+    geom_histogram(bins=20, col = "white", alpha = 0.75) +
+    labs(x = "Altitude (m)", y = "Count", 
+         title = "Distribution of Altitude Values (in meters)",
+         subtitle = "Values were transformed and measurements in feet were converted to metric system") +
+    theme_minimal()
+
+merged_df %>% 
+  dplyr::select(ALTITUDE, ALTITUDE_M) %>% 
+  dplyr::filter(!is.na(ALTITUDE), !is.na(ALTITUDE_M)) %>% 
+  dplyr::distinct() %>% 
+  head(50)
+```
+
+## Remove non-relevant features
+
+```{r}
+merged_df %>% colnames()
+
+# Impute missing OWNER with PRODUCER
+merged_df$OWNER[is.na(merged_df$OWNER)] <- merged_df$PRODUCER[is.na(merged_df$OWNER)]
+
+non_rel_features <- c("LOT_NUMBER", "FARM_NAME", "ALTITUED", "MILL", "ICO_NUMBER", "COMPANY", "NUMBER_OF_BAGS", "BAG_WEIGHT", "PRODUCER", "IN-COUNTRY_PARTNER", "GRADING_DATE", "OWNER_1", "STATUS", "EXPIRATION", "CERTIFICATION_BODY", "CERTIFICATION_ADDRESS", "CERTIFICATION_CONTACT", "GRADING_YEAR")
+
+# remove non-relevant features
+merged_df <- merged_df %>% dplyr::select(-non_rel_features)
+
+custom_visdat(merged_df, text_angle = 45)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
