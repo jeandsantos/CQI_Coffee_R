@@ -30,8 +30,17 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, error = FAL
 # Import Packages
 
 ```{r}
+# Import required packages
 if(!require(pacman, quietly = TRUE)){ install.packages("pacman", quiet = TRUE, verbose = FALSE) }
 pacman::p_load(caret, tidyverse, magrittr, tidyselect, assertive, stringi, janitor, gdata, tools, renv, install = TRUE, update = FALSE)
+
+# importing supporting functions
+for (dir in list.dirs("utils")){
+  for (file in list.files(dir, pattern="*.R", full.names = TRUE, include.dirs = TRUE)){
+    source(file)
+    message(paste0("Imported: ", file))
+  }
+}
 ```
 
 ```{r}
@@ -53,6 +62,7 @@ raw_robusta <- read_csv("data/robusta_ratings_raw.csv")
 ```
 
 
+
 # Data Cleaning
 
 ```{r}
@@ -61,8 +71,8 @@ print_dimensions(raw_robusta, message = FALSE)
 ```
 
 ```{r}
-print_colnames(raw_arabica)
-print_colnames(raw_robusta)
+print_colnames(raw_arabica, message = FALSE)
+print_colnames(raw_robusta, message = FALSE)
 ```
 
 
@@ -340,12 +350,10 @@ merged_df %>%
 ## Remove non-relevant features
 
 ```{r}
-merged_df %>% colnames()
-
 # Impute missing OWNER with PRODUCER
 merged_df$OWNER[is.na(merged_df$OWNER)] <- merged_df$PRODUCER[is.na(merged_df$OWNER)]
 
-non_rel_features <- c("LOT_NUMBER", "FARM_NAME", "ALTITUED", "MILL", "ICO_NUMBER", "COMPANY", "NUMBER_OF_BAGS", "BAG_WEIGHT", "PRODUCER", "IN-COUNTRY_PARTNER", "GRADING_DATE", "OWNER_1", "STATUS", "EXPIRATION", "CERTIFICATION_BODY", "CERTIFICATION_ADDRESS", "CERTIFICATION_CONTACT", "GRADING_YEAR")
+non_rel_features <- c("LOT_NUMBER", "FARM_NAME", "ALTITUDE", "MILL", "ICO_NUMBER", "COMPANY", "NUMBER_OF_BAGS", "BAG_WEIGHT", "PRODUCER", "IN-COUNTRY_PARTNER", "GRADING_DATE", "OWNER_1", "STATUS", "EXPIRATION", "CERTIFICATION_BODY", "CERTIFICATION_ADDRESS", "CERTIFICATION_CONTACT", "GRADING_YEAR", "TOTAL_CUP_POINTS")
 
 # remove non-relevant features
 merged_df <- merged_df %>% dplyr::select(-non_rel_features)
@@ -353,7 +361,46 @@ merged_df <- merged_df %>% dplyr::select(-non_rel_features)
 custom_visdat(merged_df, text_angle = 45)
 ```
 
+## Process Defect Features
 
+```{r}
+defect_features <- colnames(merged_df)[merged_df %>% colnames() %>% str_detect(pattern = "_DEFECTS$")]
+
+merged_df %>% dplyr::select(defect_features) %>% head()
+
+# Clean text
+for (feature in defect_features){
+  
+  merged_df[, feature] <- merged_df %>% 
+    extract(feature) %>% 
+    pull() %>% 
+    str_remove_all(" full defects") %>% 
+    as.numeric()
+}
+
+merged_df %>% dplyr::select(defect_features) %>% head()
+```
+
+
+## Process Moisture
+
+```{r}
+merged_df$MOISTURE <- merged_df$MOISTURE %>% str_remove_all(" %") %>% as.numeric()
+```
+
+# Convert features to categorical
+
+```{r}
+# obtain vector of data types
+dtypes <- sapply(merged_df, class, simplify = T)
+
+merged_df$SPECIES <- as.factor(merged_df$SPECIES)
+```
+
+
+```{r}
+
+```
 
 
 
