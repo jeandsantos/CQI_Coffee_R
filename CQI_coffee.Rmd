@@ -385,8 +385,54 @@ merged_df %>% dplyr::select(defect_features) %>% head()
 ## Process Moisture
 
 ```{r}
-merged_df$MOISTURE <- merged_df$MOISTURE %>% str_remove_all(" %") %>% as.numeric()
+print_unique <- function(vec, text = NULL, sep = " ", eol = "\n", message=FALSE, sort = TRUE, decreasing = FALSE, intro = TRUE){
+  #' Print unique entries in vector
+
+  if (is.null(text)){ text <- deparse(substitute(vec))  }
+  
+  if (intro){ intro <- paste0("Unique entries in ", text, ":")} else {intro <- NULL}
+  
+  if (sort){ unq <- sort(unique(vec), decreasing = decreasing) } else { unq <- unique(vec)}
+
+  msg <- c(paste0(intro, sep = sep), eol, unq)
+  
+  if (message) { message(msg, "\n") } else { cat(msg, "\n") }
+  
+}
+
 ```
+
+
+
+```{r}
+print_unique(merged_df$MOISTURE)
+
+merged_df$MOISTURE <- merged_df$MOISTURE %>% str_remove_all(" %") %>% as.numeric()
+
+print_unique(merged_df$MOISTURE)
+```
+
+## Process Color
+
+```{r}
+print_unique(merged_df$COLOR)
+
+merged_df$COLOR <- merged_df$COLOR %>% str_replace_all("-", "_")
+
+print_unique(merged_df$COLOR)
+```
+
+
+## Process Processing Method
+
+```{r}
+print_unique(merged_df$PROCESSING_METHOD)
+
+merged_df$PROCESSING_METHOD <- merged_df$PROCESSING_METHOD %>% str_replace_all("\\s/\\s|-|\\s", "_")
+
+print_unique(merged_df$PROCESSING_METHOD)
+```
+
 
 # Convert features to categorical
 
